@@ -33,30 +33,36 @@ bot.on('ready', async () => {
   const databaseChannel = await bot.channels.fetch(DATABASE_CHANNEL_ID);
   if (!databaseChannel) return console.error('Database channel not found.');
 
-  // Fetch all messages (up to 100 at a time)
-  let messages = await databaseChannel.messages.fetch({ limit: 100 });
-  while (messages.size > 0) {
-    messages.forEach((message) => {
-      const content = message.content.split('\n');
-      const userIdMatch = content[0].match(/User ID:\s+(\d+)/);
-      const totalTimeMatch = content[1].match(/Total Time:\s+(\d+h\s+\d+m)/);
-      const nameMatch = content[2].match(/Name:\s+(.+)/);
+  try {
+    // Fetch all messages (up to 100 at a time)
+    let messages = await databaseChannel.messages.fetch({ limit: 100 });
+    while (messages.size > 0) {
+      messages.forEach((message) => {
+        const content = message.content.split('\n');
 
-      if (userIdMatch && totalTimeMatch && nameMatch) {
-        const userId = userIdMatch[1];
-        const totalTime = parseTime(totalTimeMatch[1]);
+        // Try to extract User ID, Total Time, and Name using regex
+        const userIdMatch = content[0]?.match(/User ID:\s+(\d+)/);
+        const totalTimeMatch = content[1]?.match(/Total Time:\s+(\d+h\s+\d+m)/);
+        const nameMatch = content[2]?.match(/Name:\s+(.+)/);
 
-        adminTimingData[userId] = { totalTime, sessions: [] };
-        adminMessageIds[userId] = message.id; // Store the message ID for updates
-      }
-    });
+        if (userIdMatch && totalTimeMatch && nameMatch) {
+          const userId = userIdMatch[1];
+          const totalTime = parseTime(totalTimeMatch[1]);
 
-    // Fetch older messages if available
-    const lastMessageId = messages.last().id;
-    messages = await databaseChannel.messages.fetch({ limit: 100, before: lastMessageId });
+          adminTimingData[userId] = { totalTime, sessions: [] };
+          adminMessageIds[userId] = message.id; // Store the message ID for updates
+        }
+      });
+
+      // Fetch older messages if available
+      const lastMessageId = messages.last().id;
+      messages = await databaseChannel.messages.fetch({ limit: 100, before: lastMessageId });
+    }
+
+    console.log(`Loaded data for ${Object.keys(adminTimingData).length} users.`);
+  } catch (error) {
+    console.error('Error fetching messages from database channel:', error);
   }
-
-  console.log(`Loaded data for ${Object.keys(adminTimingData).length} users.`);
 });
 
 bot.on('voiceStateUpdate', async (oldState, newState) => {
