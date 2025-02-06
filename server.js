@@ -36,10 +36,14 @@ bot.on('ready', async () => {
   const messages = await databaseChannel.messages.fetch({ limit: 100 }); // Fetch up to 100 messages
   messages.forEach((message) => {
     const content = message.content.split('\n');
-    const userId = content[0].split(': ')[1];
-    const totalTime = parseInt(content[1].split(': ')[1]);
+    const userIdMatch = content[0].match(/User ID:\s+(\d+)/);
+    const totalTimeMatch = content[1].match(/Total Time:\s+(\d+h\s+\d+m)/);
+    const nameMatch = content[2].match(/Name:\s+(.+)/);
 
-    if (userId && totalTime) {
+    if (userIdMatch && totalTimeMatch && nameMatch) {
+      const userId = userIdMatch[1];
+      const totalTime = parseTime(totalTimeMatch[1]);
+
       adminTimingData[userId] = { totalTime, sessions: [] };
       adminMessageIds[userId] = message.id; // Store the message ID for updates
     }
@@ -363,6 +367,15 @@ function formatTime(milliseconds) {
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
+}
+
+// Helper function to parse time strings like "1h 30m" into milliseconds
+function parseTime(timeString) {
+  const match = timeString.match(/(\d+)h\s+(\d+)m/);
+  if (!match) return 0;
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  return (hours * 60 * 60 + minutes * 60) * 1000;
 }
 
 // Start the server
