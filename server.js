@@ -33,14 +33,16 @@ bot.on('ready', async () => {
   const databaseChannel = await bot.channels.fetch(DATABASE_CHANNEL_ID);
   if (!databaseChannel) return console.error('Database channel not found.');
 
-  const messages = await databaseChannel.messages.fetch();
+  const messages = await databaseChannel.messages.fetch({ limit: 100 }); // Fetch up to 100 messages
   messages.forEach((message) => {
     const content = message.content.split('\n');
     const userId = content[0].split(': ')[1];
     const totalTime = parseInt(content[1].split(': ')[1]);
 
-    adminTimingData[userId] = { totalTime, sessions: [] };
-    adminMessageIds[userId] = message.id; // Store the message ID for updates
+    if (userId && totalTime) {
+      adminTimingData[userId] = { totalTime, sessions: [] };
+      adminMessageIds[userId] = message.id; // Store the message ID for updates
+    }
   });
 });
 
@@ -85,9 +87,10 @@ bot.on('voiceStateUpdate', async (oldState, newState) => {
         const message = await databaseChannel.messages.fetch(adminMessageIds[adminId]);
         message.edit(messageContent);
       } else {
-        // Create a new message
+        // Create a new message and pin it
         const sentMessage = await databaseChannel.send(messageContent);
         adminMessageIds[adminId] = sentMessage.id;
+        sentMessage.pin(); // Pin the message for easy access
       }
     }
   }
